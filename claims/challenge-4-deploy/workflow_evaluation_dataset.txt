@@ -1,0 +1,36 @@
+All churn data for today is below — analyse it directly, do not call assess_claim.
+
+VIN001
+customer_value_score: 35  [60–100] 🔴 BELOW MIN
+churn_risk_score: 92  [0–40] 🔴 ABOVE MAX
+rfm_loyalty_score: 22%  [60–100%] 🔴 BELOW MIN
+vehicle_usage_lifecycle_score: 88  [0–50] 🔴 ABOVE MAX
+vehicle: mileage 39623 km, age 4 years, warranty expired this year: yes
+
+VIN002
+customer_value_score: 58  [60–100] 🔴 BELOW MIN
+churn_risk_score: 63  [0–40] 🔴 ABOVE MAX
+rfm_loyalty_score: 51%  [60–100%] 🔴 BELOW MIN
+vehicle_usage_lifecycle_score: 62  [0–50] 🔴 ABOVE MAX
+vehicle: mileage 45205 km, age 4 years, warranty expired this year: yes
+
+VIN003
+customer_value_score: 86  [60–100] ✅
+churn_risk_score: 18  [0–40] ✅
+rfm_loyalty_score: 84%  [60–100%] ✅
+vehicle_usage_lifecycle_score: 20  [0–50] ✅
+vehicle: mileage 82128 km, age 3 years, warranty expired this year: no
+
+VIN004
+customer_value_score: 47  [60–100] 🔴 BELOW MIN
+churn_risk_score: 85  [0–40] 🔴 ABOVE MAX
+rfm_loyalty_score: 33%  [60–100%] 🔴 BELOW MIN
+vehicle_usage_lifecycle_score: 79  [0–50] 🔴 ABOVE MAX
+vehicle: mileage 47296 km, age 2 years, warranty expired this year: no
+
+VIN005
+customer_value_score: 72  [60–100] ✅
+churn_risk_score: 38  [0–40] ✅
+rfm_loyalty_score: 62%  [60–100%] ✅
+vehicle_usage_lifecycle_score: 80  [0–50] 🔴 ABOVE MAX
+vehicle: mileage 99072 km, age 4 years, warranty expired this year: yes

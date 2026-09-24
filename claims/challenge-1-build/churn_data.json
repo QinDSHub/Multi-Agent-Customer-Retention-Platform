@@ -1,0 +1,114 @@
+{
+  "claims": [
+    {
+      "claim_id": "VIN001",
+      "status": "high",
+      "metrics": {
+        "customer_value_score":          { "value": 35, "unit": "score" },
+        "churn_risk_score":              { "value": 92, "unit": "score" },
+        "rfm_loyalty_score":             { "value": 22, "unit": "%" },
+        "vehicle_usage_lifecycle_score": { "value": 88, "unit": "score" }
+      },
+      "vehicle_info": {
+        "mile_today": 39623,
+        "vehicle_age_years": 4,
+        "warrenty_expired_this_year": "yes"
+      },
+      "recommended_promotion": "extended_warranty_insurance",
+	  "thresholds": {
+		  "customer_value_score":          { "min": 60, "max": 100 },
+		  "churn_risk_score":              { "min": 0,  "max": 40  },
+		  "rfm_loyalty_score":             { "min": 60, "max": 100 },
+		  "vehicle_usage_lifecycle_score": { "min": 0,  "max": 50  }
+		  }
+    },
+    {
+      "claim_id": "VIN002",
+      "status": "high",
+      "metrics": {
+        "customer_value_score":          { "value": 58, "unit": "score" },
+        "churn_risk_score":              { "value": 63, "unit": "score" },
+        "rfm_loyalty_score":             { "value": 51, "unit": "%" },
+        "vehicle_usage_lifecycle_score": { "value": 62, "unit": "score" }
+      },
+      "vehicle_info": {
+        "mile_today": 45205,
+        "vehicle_age_years": 4,
+        "warrenty_expired_this_year": "yes"
+      },
+      "recommended_promotion": "extended_warranty_insurance",
+	  "thresholds": {
+		  "customer_value_score":          { "min": 60, "max": 100 },
+		  "churn_risk_score":              { "min": 0,  "max": 40  },
+		  "rfm_loyalty_score":             { "min": 60, "max": 100 },
+		  "vehicle_usage_lifecycle_score": { "min": 0,  "max": 50  }
+		  }
+    },
+    {
+      "claim_id": "VIN003",
+      "status": "low",
+      "metrics": {
+        "customer_value_score":          { "value": 86, "unit": "score" },
+        "churn_risk_score":              { "value": 18, "unit": "score" },
+        "rfm_loyalty_score":             { "value": 84, "unit": "%" },
+        "vehicle_usage_lifecycle_score": { "value": 20, "unit": "score" }
+      },
+      "vehicle_info": {
+        "mile_today": 82128,
+        "vehicle_age_years": 3,
+        "warrenty_expired_this_year": "no"
+      },
+      "recommended_promotion": "maintenance_package",
+	  "thresholds": {
+		  "customer_value_score":          { "min": 60, "max": 100 },
+		  "churn_risk_score":              { "min": 0,  "max": 40  },
+		  "rfm_loyalty_score":             { "min": 60, "max": 100 },
+		  "vehicle_usage_lifecycle_score": { "min": 0,  "max": 50  }
+		  }
+    },
+    {
+      "claim_id": "VIN004",
+      "status": "high",
+      "metrics": {
+        "customer_value_score":          { "value": 47, "unit": "score" },
+        "churn_risk_score":              { "value": 85, "unit": "score" },
+        "rfm_loyalty_score":             { "value": 33, "unit": "%" },
+        "vehicle_usage_lifecycle_score": { "value": 79, "unit": "score" }
+      },
+      "vehicle_info": {
+        "mile_today": 47296,
+        "vehicle_age_years": 2,
+        "warrenty_expired_this_year": "no"
+      },
+      "recommended_promotion": "maintenance_package",
+	  "thresholds": {
+		  "customer_value_score":          { "min": 60, "max": 100 },
+		  "churn_risk_score":              { "min": 0,  "max": 40  },
+		  "rfm_loyalty_score":             { "min": 60, "max": 100 },
+		  "vehicle_usage_lifecycle_score": { "min": 0,  "max": 50  }
+		  }
+    },
+    {
+      "claim_id": "VIN005",
+      "status": "medium",
+      "metrics": {
+        "customer_value_score":          { "value": 72, "unit": "score" },
+        "churn_risk_score":              { "value": 38, "unit": "score" },
+        "rfm_loyalty_score":             { "value": 62, "unit": "%" },
+        "vehicle_usage_lifecycle_score": { "value": 80, "unit": "score" }
+      },
+      "vehicle_info": {
+        "mile_today": 99072,
+        "vehicle_age_years": 4,
+        "warrenty_expired_this_year": "yes"
+      },
+      "recommended_promotion": "new_car_trade_in",
+	  "thresholds": {
+		  "customer_value_score":          { "min": 60, "max": 100 },
+		  "churn_risk_score":              { "min": 0,  "max": 40  },
+		  "rfm_loyalty_score":             { "min": 60, "max": 100 },
+		  "vehicle_usage_lifecycle_score": { "min": 0,  "max": 50  }
+		  }
+    }
+  ]
+}
