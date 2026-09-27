@@ -1,0 +1,9 @@
+{
+  "name": "resend-mcp-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "resend-mcp": "latest"
+  }
+}

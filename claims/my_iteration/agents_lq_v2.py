@@ -1,16 +1,9 @@
 """
-In this version, there are four agents including:
-churn-triage-agent with tool calling, 
-churn-decision-agent, 
-email-content-agent, 
-auto-send-agent with MCP function.
-
-The original plan was to integrate an auto-send email MCP as the agent's tool. 
-However, due to the event's limited timeframe, the email-sending MCP was replaced with 
-the Azure REST API Specifications MCP to validate the MCP-enabled workflow and tool integration.
+V2 refines the V1 agent prompts to improve their structure, consistency, 
+and execution reliability in the Azure environment.
 
 Usage:
-    python agents.py
+    python agents_lq_v2.py
 """
 
 import json
@@ -23,8 +16,6 @@ from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import FunctionTool, PromptAgentDefinition
 from azure.identity import DefaultAzureCredential
 from openai.types.responses.response_input_param import FunctionCallOutput
-from openai.types.responses.response_input_param import McpApprovalResponse, ResponseInputParam
-from azure.ai.projects.models import MCPTool
 
 
 # Resolve repo root by finding .env in parent directories.
@@ -44,7 +35,6 @@ load_dotenv(env_path)
 PROJECT_CONNECTION_STRING = os.getenv("PROJECT_CONNECTION_STRING")
 MODEL_DEPLOYMENT_NAME = os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-5.4")
 CLAIMS_DATA_PATH = Path(__file__).resolve().parent / "churn_data.json"
-FOUNDRY_PROJECT_ENDPOINT = os.getenv("FOUNDRY_PROJECT_ENDPOINT")
 
 
 def _load_claim_batch() -> list[dict]:
@@ -284,133 +274,7 @@ class ClaimsDecisionAgent:
 
 
 # =============================================================================
-# Mail Content Generation Agent
-# =============================================================================
-
-class MailContentAgent:
-    def __init__(self):
-        self.agent = None
-        self.client = None
-        self.openai = None
-
-    def create(self):
-        """Create the mail content generation agent in Foundry."""
-        self.client = AIProjectClient(
-            endpoint=PROJECT_CONNECTION_STRING,
-            credential=DefaultAzureCredential(),
-        )
-        self.openai = self.client.get_openai_client()
-
-        system_prompt = "You are a customer promotion email specialist for a 4S dealership under Vehicle Group. Input: customer VIN, churn risk, vehicle info, recommended promotion, and reasoning. Generate a concise, friendly, personalized email based strictly on the recommended promotion within 200 words. Do not change or re-evaluate the recommendation. Tailor the message to the vehicle's age, mileage, warranty status, and churn signal when relevant. Clearly explain the promotion benefit and include a natural call to action. Do not invent prices, discounts, deadlines, or other unsupported details. Format: SUBJECT: <subject> EMAIL: <email body>"
-        self.agent = self.client.agents.create_version(
-            agent_name="email-content-agent",
-            definition=PromptAgentDefinition(
-                model=MODEL_DEPLOYMENT_NAME,
-                instructions=system_prompt,
-            ),
-        )
-
-        return self.agent
-
-    def run(self, input_text: str) -> str:
-        """Run the mail content generation agent with the given input."""
-        conversation = self.openai.conversations.create()
-
-        response = self.openai.responses.create(
-            input=input_text,
-            conversation=conversation.id,
-            extra_body={"agent_reference": {
-                "name": self.agent.name, "type": "agent_reference"}},
-        )
-
-        self.openai.conversations.delete(conversation_id=conversation.id)
-        return response.output_text
-
-    def cleanup(self):
-        """Delete the agent version and close connections."""
-        if self.agent:
-            self.client.agents.delete_version(
-                agent_name=self.agent.name,
-                agent_version=self.agent.version,
-            )
-        if self.client:
-            self.client.close()
-
-
-class AutoSendAgent:
-    def __init__(self):
-        self.agent = None
-        self.client = None
-        self.openai = None
-
-    def create(self):
-        """Create the auto sent mail agent in Foundry."""
-        self.client = AIProjectClient(
-            endpoint=PROJECT_CONNECTION_STRING,
-            credential=DefaultAzureCredential(),
-        )
-        self.openai = self.client.get_openai_client()
-
-        mcp_tool = MCPTool(
-        server_label="api-specs",
-        server_url="https://gitmcp.io/Azure/azure-rest-api-specs",
-        require_approval="always",)
-
-        system_prompt = "You are a helpful agent that can use MCP tools to assist users. Use the available MCP tools to answer questions and perform tasks."
-        self.agent = self.client.agents.create_version(
-            agent_name="auto-send-agent",
-            definition=PromptAgentDefinition(
-                model=MODEL_DEPLOYMENT_NAME,
-                instructions=system_prompt,
-                tools=[mcp_tool]
-            ),
-        )
-
-        return self.agent
-
-    def run(self, input_text: str) -> str:
-        """Run the auto send mail agent with the given input."""
-        conversation = self.openai.conversations.create()
-
-        response = self.openai.responses.create(
-            input=input_text,
-            conversation=conversation.id,
-            extra_body={"agent_reference": {
-                "name": self.agent.name, "type": "agent_reference"}},
-        )
-
-        # Process any MCP approval requests that were generated
-        input_list: ResponseInputParam = []
-        for item in response.output:
-            if item.type == "mcp_approval_request":
-                if item.server_label == "api-specs" and item.id:
-                    input_list.append(
-                        McpApprovalResponse(
-                            type="mcp_approval_response",
-                            approve=True,
-                            approval_request_id=item.id,
-                        )
-                    )
-
-        print("Final input:")
-        print(input_list)
-
-        self.openai.conversations.delete(conversation_id=conversation.id)
-        return input_list
-
-    def cleanup(self):
-        """Delete the agent version and close connections."""
-        if self.agent:
-            self.client.agents.delete_version(
-                agent_name=self.agent.name,
-                agent_version=self.agent.version,
-            )
-        if self.client:
-            self.client.close()
-
-
-# =============================================================================
-# Main — Test four agents
+# Main — Test both agents
 # =============================================================================
 
 def main():
@@ -456,42 +320,12 @@ def main():
     
     print(decision_result)
 
-
-    print("\n=== Email Content Agent ===")
-    print("Creating agent...")
-    mail_agent = MailContentAgent()
-    mail_agent.create()
-    print(f"✅ Created: {mail_agent.agent.name} (version {mail_agent.agent.version})")
-
-    generation_batch = [customer for customer in claim_batch]
-    content_result = mail_agent.run(
-    "For each customer in this batch, generate a concise, friendly, personalized email based strictly on the provided recommended promotion and customer information. Do not re-evaluate churn risk or change the recommended promotion. Include a clear promotion benefit and a natural call to action.\n"
-    f"CHURN_CUSTOMER_BATCH: {json.dumps(generation_batch)}"
-)
-
-    print(content_result)
-
-    print("\n=== Auto Send Agent ===")
-    print("Creating agent...")
-    send_agent = AutoSendAgent()
-    send_agent.create()
-    print(f"✅ Created: {send_agent.agent.name} (version {send_agent.agent.version})")
-
-    send_result = send_agent.run(
-    "Please summarize the Azure REST API specifications Readme")
-
-    print(send_result)
-
-
     # Cleanup — comment out to keep agents visible in the Foundry portal
     # print("\nCleaning up agents...")
     # triage_agent.cleanup()
     # decision_agent.cleanup()
-    # MailContentAgent.cleanup()
-    # AutoSendAgent.cleanup()
     # print("✅ Done!")
 
 
 if __name__ == "__main__":
     main()
-

@@ -2,6 +2,7 @@
   "claims": [
     {
       "claim_id": "VIN001",
+      "mail_addr": "qqinluu@gmail.com",
       "status": "high",
       "metrics": {
         "customer_value_score":          { "value": 35, "unit": "score" },
@@ -24,6 +25,7 @@
     },
     {
       "claim_id": "VIN002",
+      "mail_addr": "qqinluu@gmail.com",
       "status": "high",
       "metrics": {
         "customer_value_score":          { "value": 58, "unit": "score" },
@@ -46,6 +48,7 @@
     },
     {
       "claim_id": "VIN003",
+      "mail_addr": "qqinluu@gmail.com",
       "status": "low",
       "metrics": {
         "customer_value_score":          { "value": 86, "unit": "score" },
@@ -68,6 +71,7 @@
     },
     {
       "claim_id": "VIN004",
+      "mail_addr": "qqinluu@gmail.com",
       "status": "high",
       "metrics": {
         "customer_value_score":          { "value": 47, "unit": "score" },
@@ -90,6 +94,7 @@
     },
     {
       "claim_id": "VIN005",
+      "mail_addr": "qqinluu@gmail.com",
       "status": "medium",
       "metrics": {
         "customer_value_score":          { "value": 72, "unit": "score" },

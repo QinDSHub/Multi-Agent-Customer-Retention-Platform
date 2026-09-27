@@ -1,13 +1,3 @@
-"""
-Challenge 2: Monitor with Application Insights — Claims Processing
-Enable GenAI tracing and verify traces appear in App Insights.
-
-Usage:
-    python monitor.py
-
-IMPORTANT: Environment variables must be set BEFORE importing azure.ai.projects!
-"""
-
 import os
 import sys
 import time
@@ -73,8 +63,8 @@ def run_traced_agent_call():
         definition=PromptAgentDefinition(
             model=MODEL_DEPLOYMENT_NAME,
             instructions=(
-                "You are a claims operations assistant for ClaimSight Insurance. "
-                "Summarize triage risk and recommended decisions for claim batches."
+                "You are a claims operations assistant for Vehicle company. "
+                "Summarize triage risk and recommended action for claim batches."
             ),
         ),
     )
@@ -82,9 +72,9 @@ def run_traced_agent_call():
     conversation = openai_client.conversations.create()
     response = openai_client.responses.create(
         input=(
-            "Assess this claim batch and return decision urgency guidance.\n"
-            "domain: ClaimSight Insurance\n"
-            "claims: CLM-001 INVESTIGATE IMMEDIATE, CLM-003 REQUEST DOCUMENTS WITHIN 48H, CLM-005 INVESTIGATE STANDARD\n"
+            "Assess this claim batch and return recommended action guidance.\n"
+            "domain: Vehicle company\n"
+            "claims: VIN001 extended_warranty_insurance, VIN003 maintenance_package, VIN005 new_car_trade_in\n"
             "tool_reference: assess_claim"
         ),
         conversation=conversation.id,

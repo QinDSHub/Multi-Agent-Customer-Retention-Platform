@@ -1,3 +1,6 @@
+# Below is my draft and function test doc
+my_docs/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -11,8 +14,10 @@ venv/
 dist/
 build/
 
+
 # Environment variables
 .env
+claims/.env
 *.env.local
 
 # IDE

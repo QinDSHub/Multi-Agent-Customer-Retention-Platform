@@ -1,14 +1,19 @@
 """
-Challenge 1: Build Agents — Insurance Claims Processing
-Claims Triage Agent and Claims Decision Agent for ClaimSight Insurance.
+V6 focuses on replacing the MCP integration in the final agent 
+with direct tool calling using the Resend email service. 
+
+The approach worked reliably when implemented through the Python SDK, 
+but encountered repeated tool-calling failures in the Foundry Workflow environment. 
+
+As a result, the same implementation could not be reliably reproduced in Foundry Workflow.
 
 Usage:
-    python agents.py
+    python agents_lq_v6.py
 
-Builds both agents with system prompts, tools, and conversation handling.
 """
 
 import json
+import resend
 import os
 import sys
 from pathlib import Path
@@ -18,7 +23,6 @@ from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import FunctionTool, PromptAgentDefinition
 from azure.identity import DefaultAzureCredential
 from openai.types.responses.response_input_param import FunctionCallOutput
-
 
 # Resolve repo root by finding .env in parent directories.
 def _find_repo_root() -> Path:
@@ -38,7 +42,9 @@ PROJECT_CONNECTION_STRING = os.getenv("PROJECT_CONNECTION_STRING")
 # MODEL_DEPLOYMENT_NAME = os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-5.4")
 MODEL_DEPLOYMENT_NAME = os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-chat-latest")
 # CLAIMS_DATA_PATH = Path(__file__).resolve().parent / "claims_data.json"
-CLAIMS_DATA_PATH = Path(__file__).resolve().parent / "churn_data.json"
+CLAIMS_DATA_PATH = Path(__file__).resolve().parent / "churn_data_v3.json"
+FOUNDRY_PROJECT_ENDPOINT = os.getenv("FOUNDRY_PROJECT_ENDPOINT")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 
 
 def _load_claim_batch() -> list[dict]:
@@ -72,6 +78,7 @@ def assess_claim(claim_id: str) -> str:
 
     results = {
         "claim_id": claim["claim_id"],
+        "mail_addr": claim["mail_addr"],
         # "type": claim["type"],
         # "claimant": claim["claimant"],
         # "date_filed": claim["date_filed"],
@@ -130,7 +137,7 @@ ASSESS_CLAIM_TOOL = FunctionTool(
     # ),
     description=(
     "Assess vehicle customer churn using customer value, churn risk, RFM loyalty, "
-    "and vehicle lifecycle metrics. Flags out-of-range values and returns deviations."
+    "and report vehicle lifecycle metrics and mail address. Flags out-of-range values and returns deviations."
     ),
     parameters={
         "type": "object",
@@ -165,54 +172,9 @@ class ClaimsTriageAgent:
         )
         self.openai = self.client.get_openai_client()
 
-        # system_prompt = """
-        # You are an insurance claims triage specialist for ClaimSight Insurance.
-        # When asked to assess claims, use the assess_claim tool for each claim.
-        # For each claim, report:
-        # - Claim ID, type, and claimant name
-        # - Risk classification (normal / warning / critical)
-        # - Each metric that is flagged: current value, threshold violated, deviation
-        # - Missing documents if completeness is below threshold
-        # Use ⚠️ for warning and 🔴 for critical flags.
-        # If all metrics are within acceptable ranges, mark the claim as normal (✅).
-        # Be concise and structured.
-        # """
-
-        # system_prompt = """
-        # You are a customer churn triage specialist for a 4S dealership under Vehicle Group.
-        # When asked to assess claims, use the assess_claim tool for each claim.
-
-        # Each claim contains four churn metrics, and each metric has:
-        # - a current value
-        # - an acceptable range [min, max]
-
-        # A metric is "flagged" when its value falls OUTSIDE its acceptable range.
-        # The deviation is how far the value is outside the range.
-
-        # The four metrics to evaluate are:
-        # - customer_value_score          (higher is better)
-        # - churn_risk_score              (lower is better)
-        # - rfm_loyalty_score             (higher is better)
-        # - vehicle_usage_lifecycle_score (lower is better; higher = later lifecycle = higher churn risk)
-
-        # For each claim, report:
-        # - Claim ID (VIN)
-        # - Vehicle info summary: current mileage, vehicle age, and whether warranty expired
-        # - Evaluate churn risk (high / medium / low)
-        # - Each flagged metric: current value, acceptable range, and deviation
-
-        # Risk rules:
-        # - high   (🔴): 3 or more metrics flagged
-        # - medium (⚠️): 1–2 metrics flagged
-        # - low    (✅): no metric flagged
-
-        # Be concise and structured.
-        # """
-
         system_prompt = "You are a customer churn triage specialist for a 4S dealership under Vehicle Group. Use the assess_claim tool for each customer. Each customer has four churn metrics with acceptable ranges [min,max]. A metric is flagged if its value is outside the range; deviation is the distance outside the range. Metrics: customer_value_score (higher is better), churn_risk_score (lower is better), rfm_loyalty_score (higher is better), vehicle_usage_lifecycle_score (lower is better; higher means later lifecycle and higher churn risk). Report VIN, vehicle summary (mileage, age, warranty expired), churn risk (high/medium/low), and each flagged metric with current value, range, and deviation. Risk: high 🔴=3+ flagged, medium ⚠️=1–2, low ✅=0. Be concise and structured."
 
         self.agent = self.client.agents.create_version(
-            # agent_name="claims-triage-agent",
             agent_name="churn-triage-agent",
             definition=PromptAgentDefinition(
                 model=MODEL_DEPLOYMENT_NAME,
@@ -297,47 +259,9 @@ class ClaimsDecisionAgent:
         )
         self.openai = self.client.get_openai_client()
 
-        # system_prompt = """
-        # You are a senior claims adjuster and decision specialist for ClaimSight Insurance.
-        # Given a list of flags from a claim assessment, your job is to:
-        # 1. Determine the recommended action based on the pattern of flags:
-        #    - High fraud risk score alone → Investigate for potential fraud
-        #    - Low completeness alone → Request missing documents before proceeding
-        #    - High fraud risk + low damage-estimate match → Likely inflated claim, escalate to SIU
-        #    - Low policy coverage match → Partial denial, cover only matched items
-        #    - Multiple critical flags → Compound risk, full investigation required
-        # 2. Recommend specific, actionable next steps for the claims adjuster.
-        # 3. Estimate urgency: IMMEDIATE (potential fraud), WITHIN 48H (missing docs), or STANDARD (routine).
-        # Be concise. Format your response as:
-        # RECOMMENDED ACTION: APPROVE / REQUEST DOCUMENTS / INVESTIGATE / DENY
-        # REASONING: ...
-        # NEXT STEPS: ...
-        # URGENCY: ...
-        # """
-
-
-        # system_prompt = """
-        # You are a promotion decision specialist for a 4S dealership under Vehicle Group.
-
-        # Input: churn triage output — VIN, churn risk (high/medium/low), flagged metrics,
-        # and vehicle info (mile_today, vehicle_age_years, warrenty_expired_this_year).
-
-        # Recommend exactly ONE promotion:
-        # - extended_warranty_insurance: warranty expired/expiring this year, mileage not extreme
-        # - new_car_trade_in: mileage >= 80,000 km and vehicle_age_years == 4
-        # - maintenance_package: otherwise (still active, or best chance to lock in future visits)
-
-        # Priority: if multiple apply, pick the one addressing the strongest churn signal.
-
-        # Explain in <= 2 sentences. Format:
-        # RECOMMENDED ACTION: <action>
-        # REASONING: <1-2 sentences>
-        # """
-
         system_prompt = "You are a promotion decision specialist for a 4S dealership under Vehicle Group. Input: churn triage output with VIN, churn risk (high/medium/low), flagged metrics, and vehicle info (mile_today, vehicle_age_years, warrenty_expired_this_year). Recommend exactly ONE promotion: extended_warranty_insurance if warranty expired/expiring this year and mileage <80,000 km; new_car_trade_in if mileage >=80,000 km and vehicle_age_years ==4; otherwise maintenance_package. If multiple apply, choose the promotion addressing the strongest churn signal. Explain in <=2 sentences. Format: RECOMMENDED ACTION: <action> REASONING: <1-2 sentences>"
 
         self.agent = self.client.agents.create_version(
-            # agent_name="claims-decision-agent",
             agent_name="churn-decision-agent",
             definition=PromptAgentDefinition(
                 model=MODEL_DEPLOYMENT_NAME,
@@ -390,9 +314,8 @@ class MailContentAgent:
         )
         self.openai = self.client.get_openai_client()
 
-        system_prompt = "You are a customer promotion email specialist for a 4S dealership under Vehicle Group. Input: customer VIN, churn risk, vehicle info, recommended promotion, and reasoning. Generate a concise, friendly, personalized email based strictly on the recommended promotion within 200 words. Do not change or re-evaluate the recommendation. Tailor the message to the vehicle's age, mileage, warranty status, and churn signal when relevant. Clearly explain the promotion benefit and include a natural call to action. Do not invent prices, discounts, deadlines, or other unsupported details. Format: SUBJECT: <subject> EMAIL: <email body>"
+        system_prompt = "You are a customer promotion email specialist for a 4S dealership under Vehicle Group. Input: customer VIN, churn risk, vehicle info, recommended promotion, and reasoning. Generate a concise, friendly, personalized email based strictly on the recommended promotion within 100 words. Do not change or re-evaluate the recommendation. Tailor the message to the vehicle's age, mileage, warranty status, and churn signal when relevant. Clearly explain the promotion benefit and include a natural call to action. Do not invent prices, discounts, deadlines, or other unsupported details. Format: SUBJECT: <subject> EMAIL: <email body>"
         self.agent = self.client.agents.create_version(
-            # agent_name="claims-decision-agent",
             agent_name="email-content-agent",
             definition=PromptAgentDefinition(
                 model=MODEL_DEPLOYMENT_NAME,
@@ -426,9 +349,155 @@ class MailContentAgent:
         if self.client:
             self.client.close()
 
+# =============================================================================
+# Auto Send Agent
+# =============================================================================
+
+def send_email(
+    mail_addr: str,
+    subject: str,
+    body: str,
+) -> str:
+
+    resend.api_key = RESEND_API_KEY
+
+    params: resend.Emails.SendParams = {
+        "from": "onboarding@resend.dev",
+        "to": [mail_addr],
+        "subject": subject,
+        "html": body.replace("\n", "<br>"),
+    }
+
+    try:
+        email = resend.Emails.send(params)
+
+        return (
+            f"Email sent successfully to {mail_addr}. "
+            f"Email ID: {email.id}"
+        )
+
+    except Exception as e:
+        return (
+            f"Failed to send email to {mail_addr}: {str(e)}"
+        )
+
+
+RESEND_TOOL = FunctionTool(
+    name="send_email",
+    description=(
+        "Send an email via Resend using the provided recipient, subject, "
+        "and body. The email is sent from onboarding@resend.dev."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "mail_addr": {
+                "type": "string",
+                "description": "The recipient's email address."
+            },
+            "subject": {
+                "type": "string",
+                "description": "The email subject generated by the previous agent."
+            },
+            "body": {
+                "type": "string",
+                "description": "The email body generated by the previous agent."
+            },
+        },
+        "required": ["mail_addr", "subject", "body"],
+    },
+)
+
+
+class AutoSendAgent:
+    def __init__(self):
+        self.agent = None
+        self.client = None
+        self.openai = None
+
+    def create(self):
+        self.client = AIProjectClient(
+            endpoint=PROJECT_CONNECTION_STRING,
+            credential=DefaultAzureCredential(),
+        )
+        self.openai = self.client.get_openai_client()
+
+        system_prompt = (
+        "You are an email sending agent. "
+        "For each email provided by the previous agent, call send_email exactly once "
+        "using the exact mail_addr, subject, and body values provided. "
+        "Preserve all fields and content exactly; do not rewrite, summarize, regenerate, "
+        "skip, or duplicate any email. "
+        "The default sender is onboarding@resend.dev."
+        )
+        
+        self.agent = self.client.agents.create_version(
+            agent_name="auto-send-agent",
+            definition=PromptAgentDefinition(
+                model=MODEL_DEPLOYMENT_NAME,
+                instructions=system_prompt,
+                tools=[RESEND_TOOL],
+            ),
+        )
+        return self.agent
+
+    def run(self, input_text: str) -> str:
+        conversation = self.openai.conversations.create()
+        try:
+            response = self.openai.responses.create(
+                input=input_text,
+                conversation=conversation.id,
+                extra_body={"agent_reference": {
+                    "name": self.agent.name, "type": "agent_reference"}},
+            )
+
+            while True:
+                tool_calls = [
+                    item for item in response.output
+                    if item.type == "function_call"
+                ]
+                if not tool_calls:
+                    break
+
+                tool_outputs = []
+                for call in tool_calls:
+                    args = json.loads(call.arguments)
+                    
+                    result = send_email(
+                        mail_addr=args["mail_addr"],
+                        subject=args["subject"],
+                        body=args["body"],
+                    )
+
+                    tool_outputs.append({
+                        "type": "function_call_output",
+                        "call_id": call.call_id,
+                        "output": result,
+                    })
+
+                response = self.openai.responses.create(
+                    previous_response_id=response.id,
+                    input=tool_outputs,
+                    extra_body={"agent_reference": {
+                        "name": self.agent.name, "type": "agent_reference"}},
+                )
+
+            return response.output_text
+        finally:
+            self.openai.conversations.delete(conversation_id=conversation.id)
+
+    def cleanup(self):
+        if self.agent:
+            self.client.agents.delete_version(
+                agent_name=self.agent.name,
+                agent_version=self.agent.version,
+            )
+        if self.client:
+            self.client.close()
+
 
 # =============================================================================
-# Main — Test three agents
+# Main — Test four agents
 # =============================================================================
 
 def main():
@@ -447,13 +516,6 @@ def main():
     print("\nAssessing all claims...")
     claim_batch = _load_claim_batch()
     claim_ids = [claim["claim_id"] for claim in claim_batch]
-    # triage_result = triage_agent.run(
-    #     "You are receiving a batch payload of claims that must be assessed in one run. "
-    #     "Use assess_claim for each claim_id in the payload and summarize all flags.\n\n"
-    #     f"BATCH_CLAIM_IDS: {json.dumps(claim_ids)}\n"
-    #     "BATCH_CLAIM_DATA:\n"
-    #     f"{json.dumps(claim_batch, indent=2)}"
-    # )
 
     triage_result = triage_agent.run(
     "Assess every customer in this batch using assess_claim exactly once per VIN. "
@@ -474,12 +536,6 @@ def main():
     print("\nDeciding on high-risk claim batch...")
     high_risk_batch = [
         claim for claim in claim_batch if claim["status"] in {"high", "medium"}]
-    # decision_result = decision_agent.run(
-    #     "You are receiving a batch payload of high and medium risk claims. For each claim, provide: "
-    #     "recommended action and reasoning.\n\n"
-    #     "HIGH_RISK_CLAIM_BATCH:\n"
-    #     f"{json.dumps(high_risk_batch, indent=2)}"
-    # )
 
     decision_result = decision_agent.run(
     "For each high- or medium-risk customer in this batch, recommend exactly one promotion and provide a brief reason.\n"
@@ -490,24 +546,63 @@ def main():
 
     print("\n=== Email Content Agent ===")
     print("Creating agent...")
+
     mail_agent = MailContentAgent()
     mail_agent.create()
-    print(f"✅ Created: {mail_agent.agent.name} (version {mail_agent.agent.version})")
 
-    generation_batch = [customer for customer in claim_batch]
+    print(
+        f"✅ Created: {mail_agent.agent.name} "
+        f"(version {mail_agent.agent.version})"
+    )
+
     content_result = mail_agent.run(
-    "For each customer in this batch, generate a concise, friendly, personalized email based strictly on the provided recommended promotion and customer information. Do not re-evaluate churn risk or change the recommended promotion. Include a clear promotion benefit and a natural call to action.\n"
-    f"CHURN_CUSTOMER_BATCH: {json.dumps(generation_batch)}"
-)
+        "For each customer in this batch, report claim_id and mail_addr, "
+        "and generate a concise, friendly, personalized email based strictly "
+        "on the provided recommended promotion and customer information. "
+        "Do not re-evaluate churn risk or change the recommended promotion. "
+        "Include a clear promotion benefit and a natural call to action. "
+        "Return the result as a JSON array containing claim_id, mail_addr, "
+        "subject, and body for each customer.\n"
+        f"CHURN_CUSTOMER_BATCH: {json.dumps(claim_batch)}"
+    )
 
     print(content_result)
+
+
+    print("\n=== Auto Send Agent ===")
+    print("Creating agent...")
+
+    send_agent = AutoSendAgent()
+    send_agent.create()
+
+    print(
+        f"✅ Created: {send_agent.agent.name} "
+        f"(version {send_agent.agent.version})"
+    )
+
+    send_result = send_agent.run(
+        "For each email in EMAILS_TO_SEND, call the send_email tool exactly "
+        "once using the provided mail_addr, subject, and body. "
+        "Do not modify, rewrite, shorten, or regenerate the subject or body. "
+        "Do not skip any email and do not send any email more than once. "
+        "After processing the entire batch, summarize the number of successful "
+        "and failed sends. For failures, include the claim_id and error message.\n"
+        f"EMAILS_TO_SEND: {content_result}"
+    )
+
+    print("Send result:")
+    print(send_result)
+
 
     # Cleanup — comment out to keep agents visible in the Foundry portal
     # print("\nCleaning up agents...")
     # triage_agent.cleanup()
     # decision_agent.cleanup()
+    # MailContentAgent.cleanup()
+    # AutoSendAgent.cleanup()
     # print("✅ Done!")
 
 
 if __name__ == "__main__":
     main()
+

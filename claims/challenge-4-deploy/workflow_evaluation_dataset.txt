@@ -1,6 +1,7 @@
 All churn data for today is below — analyse it directly, do not call assess_claim.
 
 VIN001
+mail_addr: qqinluu@gmail.com
 customer_value_score: 35  [60–100] 🔴 BELOW MIN
 churn_risk_score: 92  [0–40] 🔴 ABOVE MAX
 rfm_loyalty_score: 22%  [60–100%] 🔴 BELOW MIN

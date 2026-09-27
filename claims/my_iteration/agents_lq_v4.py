@@ -1,5 +1,6 @@
 """
-In this version, there are four agents including:
+In this version V4 based on V3 add one more agent with MCP, 
+there are:
 churn-triage-agent with tool calling, 
 churn-decision-agent, 
 email-content-agent, 
@@ -10,7 +11,7 @@ However, due to the event's limited timeframe, the email-sending MCP was replace
 the Azure REST API Specifications MCP to validate the MCP-enabled workflow and tool integration.
 
 Usage:
-    python agents.py
+    python agents_lq_v4.py
 """
 
 import json
